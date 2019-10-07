@@ -1,0 +1,50 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Example 1",
+			"type": "node",
+			"runtimeArgs": [
+				"--require",
+				"source-map-support/register",
+			],
+			"request": "launch",
+			"preLaunchTask": "compile:src:ts",
+			"cwd": "${workspaceRoot}",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"program": "${workspaceRoot}/test/example1.js"
+		},
+		{
+			"name": "Test",
+			"type": "node",
+			"request": "launch",
+			"preLaunchTask": "compile:test:ts",
+			"runtimeExecutable": null,
+			"runtimeArgs": [
+				"--nolazy",
+				"--require",
+				"source-map-support/register",
+			],
+			"stopOnEntry": false,
+			"program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
+			"args": [
+				"--no-timeouts",
+				"--colors",
+				"--debug-brk",
+				"test/**/*.test.js"
+			],
+			"cwd": "${workspaceRoot}",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"console": "internalConsole",
+			"sourceMaps": true,
+			"outFiles": [
+				"${workspaceRoot}/src/**/*.js",
+				"${workspaceRoot}/test/**/*.js"
+			]
+		}
+	]
+}
