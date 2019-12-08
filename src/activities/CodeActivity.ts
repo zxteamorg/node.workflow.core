@@ -1,16 +1,16 @@
 import { CancellationToken } from "@zxteam/contract";
 
-import { Activity } from "../Activity";
-import { WorkflowRuntime } from "../WorkflowRuntime";
+import { Activity } from "./Activity";
+import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 
-export class CodeActivity<TContext> extends Activity<TContext> {
-	private readonly _func: (context: TContext) => void | Promise<void>;
-	public constructor(func: (context: TContext) => void | Promise<void>) {
-		super();
-		this._func = func;
-	}
+@Activity.Id("b9c1c0a9-a3c6-41df-a069-ee86784772b3")
+export abstract class CodeActivity extends Activity {
+	public constructor(opts?: Activity.Opts) { super(opts || {}); }
 
-	protected async onExecute(cancellationToken: CancellationToken, context: TContext, runtime: WorkflowRuntime): Promise<void> {
-		return await this._func(context);
+	protected abstract code(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): void | Promise<void>;
+
+	protected async onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): Promise<void> {
+		await this.code(cancellationToken, wvm);
+		wvm.callstackPop(); // remove itself
 	}
 }

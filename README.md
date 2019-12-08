@@ -1,5 +1,10 @@
 # ZXTeam's Workflow
 
+## Meet Requirements
+* Debuggability - LocalWorkflowVirtualMachine provides linear stack trace
+* Persistable - Allows to persist runtime state, and restore in future
+* Traceability - Allow
+
 ## Samples
 #### [Example 1](./test/example1.ts)
 ```typescript
@@ -60,3 +65,6 @@ three
 example1 The Noname is 45 years old.
 Checking condition in CodeActivity
 ```
+
+
+{SHA}ucpU7gua0rlJJsOaFqhVkoib6LI=

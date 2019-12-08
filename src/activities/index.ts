@@ -1,6 +1,10 @@
+export { Activity } from "./Activity";
+export { BreakpointActivity } from "./BreakpointActivity";
 export { CodeActivity } from "./CodeActivity";
 export { ConsoleLogActivity } from "./ConsoleLogActivity";
 export { ContextActivity } from "./ContextActivity";
 export { DelayActivity } from "./DelayActivity";
+export { IfActivity } from "./IfActivity";
+export { LoopActivity } from "./LoopActivity";
+export { RandomUintActivity } from "./RandomUintActivity";
 export { SequenceActivity } from "./SequenceActivity";
-export { WhileActivity } from "./WhileActivity";

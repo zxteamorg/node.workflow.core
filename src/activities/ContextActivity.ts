@@ -1,26 +1,22 @@
 import { CancellationToken } from "@zxteam/contract";
 
-import { Activity } from "../Activity";
-import { WorkflowRuntime } from "../WorkflowRuntime";
+import { Activity } from "./Activity";
+import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 
-export class ContextActivity<TContext, TExtendContext> extends Activity<TContext> {
-	private readonly child: Activity<TContext & TExtendContext>;
-	private readonly initContext: TExtendContext;
+@Activity.Id("0c9b672e-7efe-4d61-b5da-cda0fdd00863")
+export class ContextActivity extends Activity {
+	public constructor(opts: Activity.Opts, child: Activity) { super(opts, child); }
 
-	public constructor({ child, initContext: initContext }: ContextActivity.Opts<TContext, TExtendContext>) {
-		super();
-		this.child = child;
-		this.initContext = initContext;
-	}
-
-	protected onExecute(cancellationToken: CancellationToken, context: TContext, runtime: WorkflowRuntime): void | Promise<void> {
-		const childContext: TContext & TExtendContext = { ...context, ...this.initContext };
-		return runtime.scheduleActivity(cancellationToken, this.child, childContext);
-	}
-}
-export namespace ContextActivity {
-	export interface Opts<TContext, TExtendContext> {
-		readonly child: Activity<TContext & TExtendContext>;
-		readonly initContext: TExtendContext;
+	protected async onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): Promise<void> {
+		if (wvm.currentActivityCallCount === 1) {
+			const initContext = this.opts;
+			for (const key of Object.keys(initContext)) {
+				const value = initContext[key];
+				wvm.variable(key, WorkflowVirtualMachine.Scope.PUBLIC, value);
+			}
+			await wvm.callstackPush(cancellationToken, this.children[0]);
+		} else {
+			wvm.callstackPop(); // remove itself
+		}
 	}
 }

@@ -1,36 +1,28 @@
 import { CancellationToken } from "@zxteam/contract";
 
-import { Activity } from "../Activity";
-import { WorkflowRuntime } from "../WorkflowRuntime";
+import { Activity } from "./Activity";
+import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 
-export class SequenceActivity<TContext> extends Activity<TContext> {
-	private readonly children: ReadonlyArray<Activity<TContext>>;
+@Activity.Id("d2360cf2-d55f-4198-ba84-a8af34c9888f")
+export class SequenceActivity extends Activity {
+	public constructor(...children: ReadonlyArray<Activity>) { super({}, ...children); }
 
-	public constructor({ children }: SequenceActivity.Opts<TContext>) {
-		super();
-		this.children = children;
-	}
-
-	protected async onExecute(cancellationToken: CancellationToken, context: TContext, runtime: WorkflowRuntime): Promise<void> {
-		const childIndexState: string | undefined = runtime.localState.get("CHILD_INDEX");
-		let childIndex: number;
-		if (childIndexState === undefined) {
-			childIndex = 0;
+	protected async onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): Promise<void> {
+		let variable: WorkflowVirtualMachine.Variable;
+		if (wvm.currentActivityCallCount === 1) {
+			variable = wvm.variable("CHILD_INDEX", WorkflowVirtualMachine.Scope.PRIVATE, 0);
 		} else {
-			childIndex = Number.parseInt(childIndexState) + 1;
+			variable = wvm.variable("CHILD_INDEX");
+
 		}
-		runtime.localState.set("CHILD_INDEX", childIndex.toString());
+
+		const childIndex: number = variable.value++;
 
 		if (childIndex < this.children.length) {
-			runtime.markRetryCurrentActivity(); // This tells runtime to loop this activity
-
-			const nextChild: Activity<TContext> = this.children[childIndex];
-			await runtime.scheduleActivity(cancellationToken, nextChild, context); // Schedule execution of the child activity
+			const nextChild: Activity = this.children[childIndex];
+			await wvm.callstackPush(cancellationToken, nextChild);
+		} else {
+			wvm.callstackPop(); // remove itself
 		}
-	}
-}
-export namespace SequenceActivity {
-	export interface Opts<TContext> {
-		readonly children: ReadonlyArray<Activity<TContext>>;
 	}
 }
