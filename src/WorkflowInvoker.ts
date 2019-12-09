@@ -6,7 +6,7 @@ import { WorkflowVirtualMachineImpl } from "./internal/WorkflowVirtualMachineImp
 import { BreakpointActivity } from "./activities/BreakpointActivity";
 
 export class WorkflowInvoker {
-	private readonly _vm: WorkflowVirtualMachine;
+	private readonly _wvm: WorkflowVirtualMachine;
 
 	public static async run(cancellationToken: CancellationToken, activity: Activity): Promise<void> {
 		const instance = new WorkflowInvoker(activity);
@@ -14,17 +14,22 @@ export class WorkflowInvoker {
 	}
 
 	public constructor(activity: Activity) {
-		this._vm = new WorkflowVirtualMachineImpl(activity);
+		this._wvm = new WorkflowVirtualMachineImpl(activity);
 	}
 
 	public async invoke(cancellationToken: CancellationToken) {
 		do {
-			await this._vm.tick(cancellationToken);
-		} while (!this._vm.isTerminated);
+			await this._wvm.tick(cancellationToken);
+		} while (!this._wvm.isTerminated);
 	}
 
-	public resumeBreakpoint(name: string): void {
-		const breakpointActivity = BreakpointActivity.of(this._vm, name);
-		breakpointActivity.resume(this._vm);
+	public waitForBreakpoint(cancellationToken: CancellationToken, breakpointName: string): Promise<BreakpointActivity> {
+		const breakpointActivity = BreakpointActivity.of(this._wvm, breakpointName);
+		return breakpointActivity.wait(cancellationToken, this._wvm);
+	}
+
+	public resumeBreakpoint(breakpointName: string): void {
+		const breakpointActivity = BreakpointActivity.of(this._wvm, breakpointName);
+		breakpointActivity.resume(this._wvm);
 	}
 }

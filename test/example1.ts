@@ -135,7 +135,8 @@ async function main(): Promise<void> {
 					falseActivity:
 						new ConsoleLogActivity({ text: "Random value is NEGATIVE" })
 				})
-			)
+			),
+			new BreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" })
 		)
 	);
 
@@ -150,6 +151,15 @@ async function main(): Promise<void> {
 	// const workflow = new ConsoleLogActivity({ text: "one" });
 
 	workflowInvoker = new WorkflowInvoker(workflow);
+
+	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT").then((brk) => {
+		console.log("UUUha! TEST_BREAKPOINT is reached. Will resume it in 3 seconds. Description: " + brk.description);
+		setTimeout(function () {
+			workflowInvoker.resumeBreakpoint("TEST_BREAKPOINT");
+			console.log("Resumed TEST_BREAKPOINT");
+		}, 3000);
+	});
+
 	await workflowInvoker.invoke(dummyCancellationToken);
 	//await WorkflowInvoker.run(dummyCancellationToken, workflow);
 }
