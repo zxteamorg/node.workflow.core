@@ -1,58 +1,67 @@
 import { CancellationToken } from "@zxteam/contract";
-
-import { Activity } from "./Activity";
-import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
-
-import { getActivityUUID } from "../internal/meta";
 import { InvalidOperationError } from "@zxteam/errors";
 
-@Activity.Id("58dc3233-bd64-4388-8384-c3585e8df05c")
-export class IfActivity extends Activity {
-	private readonly _symbol: Symbol;
+import { Activity } from "./Activity";
+import { NativeActivity } from "./NativeActivity";
 
-	public static of(wvm: WorkflowVirtualMachine): IfActivity {
-		for (const activity of wvm.ancestorChain) {
+import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
+
+@Activity.Id("58dc3233-bd64-4388-8384-c3585e8df05c")
+export class IfActivity extends NativeActivity {
+	public static of(ctx: WorkflowVirtualMachine.ExecutionContext): IfActivity {
+		for (const activity of ctx.stack) {
 			if (activity instanceof IfActivity) {
 				return activity;
 			}
 		}
-		throw new InvalidOperationError("IfActivity was not found in ancestorChain.");
+		throw new InvalidOperationError("IfActivity was not found in current stack.");
 	}
 
-	public constructor(opts: { readonly conditionActivity: Activity, readonly trueActivity: Activity, readonly falseActivity?: Activity }) {
+	public constructor(opts: {
+		readonly conditionActivity: Activity,
+		readonly trueActivity: Activity,
+		readonly falseActivity?: Activity
+	}) {
 		const children = [opts.conditionActivity, opts.trueActivity];
 		if (opts.falseActivity !== undefined) {
 			children.push(opts.falseActivity);
 		}
 		super({}, ...children);
-		this._symbol = Symbol.for(getActivityUUID(this.constructor as Activity.Constructor));
 	}
 
-	public markTrue(wvm: WorkflowVirtualMachine): void {
-		wvm.variable(this._symbol).value = true;
+	public markTrue(ctx: WorkflowVirtualMachine.ExecutionContext): void {
+		const oid = ctx.getActivityOid(this);
+		const { variables } = ctx;
+		variables.set(oid, true);
 	}
 
-	public markFalse(wvm: WorkflowVirtualMachine): void {
-		wvm.variable(this._symbol).value = false;
+	public markFalse(ctx: WorkflowVirtualMachine.ExecutionContext): void {
+		const oid = ctx.getActivityOid(this);
+		const { variables } = ctx;
+		variables.set(oid, false);
 	}
 
-	protected async onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): Promise<void> {
-		if (wvm.currentActivityCallCount === 1) {
-			wvm.variable(this._symbol, WorkflowVirtualMachine.Scope.SYMBOL, false);
-			await wvm.callstackPush(cancellationToken, this.children[0]);
-		} else {
-			const conditionVariable: WorkflowVirtualMachine.Variable = wvm.variable(this._symbol);
-			if (conditionVariable.value === true) {
+	protected async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+		const oid = ctx.getActivityOid(this);
+		const { variables } = ctx;
+
+		if (!variables.has(oid)) {
+			variables.define(oid, null, WorkflowVirtualMachine.Scope.INHERIT);
+			await ctx.stackPush(cancellationToken, this.children[0]);
+		} else if (!variables.has(`${oid}#`)) {
+			const conditionResult = variables.getBoolean(oid);
+
+			variables.define(`${oid}#`, null, WorkflowVirtualMachine.Scope.LOCAL);
+
+			if (conditionResult === true) {
 				const trueActivity: Activity = this.children[1];
-				await wvm.callstackPush(cancellationToken, trueActivity);
-				conditionVariable.value = null;
-			} else if (conditionVariable.value === false && this.children.length > 2) {
+				await ctx.stackPush(cancellationToken, trueActivity);
+			} else if (this.children.length > 2) {
 				const falseActivity: Activity = this.children[2];
-				await wvm.callstackPush(cancellationToken, falseActivity); // run falseActi
-				conditionVariable.value = null;
-			} else {
-				wvm.callstackPop(); // remove itself
+				await ctx.stackPush(cancellationToken, falseActivity); // run falseActi
 			}
+		} else {
+			ctx.stackPop(); // remove itself
 		}
 	}
 }

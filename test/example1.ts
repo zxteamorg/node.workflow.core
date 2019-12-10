@@ -1,8 +1,8 @@
 import { CancellationToken } from "@zxteam/contract";
 
 import {
-	Activity, BreakpointActivity, CodeActivity, ContextActivity,
-	ConsoleLogActivity, DelayActivity, LoopActivity,
+	Activity, BreakpointActivity, BusinessActivity, ContextActivity,
+	ConsoleLogActivity, DelayActivity, LoopActivity, NativeActivity,
 	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity
 } from "../src";
 import { WorkflowInvoker } from "../src";
@@ -26,38 +26,40 @@ async function main(): Promise<void> {
 	// interface PersonContext { name: string; age: number; }
 
 	@Activity.Id("46d44efd-7341-4b7e-a581-41b605ac5f6c")
-	class PersonRenderActivity extends Activity {
+	class PersonRenderActivity extends BusinessActivity {
 		public constructor() { super({}); }
 
-		protected onExecute(cancellationToken: CancellationToken, vm: WorkflowVirtualMachine) {
-			console.log(`Application '${vm.variable("appName").value}' The ${vm.variable("name").value} is ${vm.variable("age").value} years old.`);
-			vm.callstackPop(); // remove itself
+		protected onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.ExecutionContext) {
+			console.log(`Application '${ctx.variables.getString("appName")}' The ${ctx.variables.getString("name")} is ${ctx.variables.getInteger("age")} years old.`);
 		}
 	}
 
 	@Activity.Id("5b839031-04ff-4e52-849a-194ddd28b094")
-	class IncrementAgeAndBreakLoop extends CodeActivity {
+	class IncrementAgeAndBreakLoop extends BusinessActivity {
 		public constructor() { super({}); }
 
-		protected code(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): void | Promise<void> {
-			++wvm.variable("age").value;
+		protected onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.ExecutionContext): void | Promise<void> {
+			const currentAge = ctx.variables.getInteger("age");
 
-			if (wvm.variable("age").value > 45) {
-				LoopActivity.break(wvm);
+			if (currentAge > 45) {
+				LoopActivity.of(ctx).break(ctx);
+			} else {
+				ctx.variables.set("age", currentAge + 1);
 			}
 		}
 	}
 
-	class IsRandomPositive extends CodeActivity {
+	class IsRandomPositive extends NativeActivity {
 		public constructor() { super({}); }
 
-		protected code(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): void | Promise<void> {
+		protected onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): void | Promise<void> {
 			const ifActivity: IfActivity = IfActivity.of(wvm);
-			if (wvm.variable("random").value > 0) {
+			if (wvm.variables.getInteger("random") > 0) {
 				ifActivity.markTrue(wvm);
 			} else {
 				ifActivity.markFalse(wvm);
 			}
+			wvm.stackPop(); // Remove itself
 		}
 	}
 

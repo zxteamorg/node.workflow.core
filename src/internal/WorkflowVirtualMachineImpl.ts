@@ -1,19 +1,36 @@
 import { CancellationToken } from "@zxteam/contract";
-import { InvalidOperationError } from "@zxteam/errors";
+import { InvalidOperationError, ArgumentError } from "@zxteam/errors";
+
+import * as _ from "lodash";
 
 import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
-import { Activity } from "../activities";
+import { Activity, BreakpointActivity, NativeActivity } from "../activities";
 import * as meta from "../internal/meta";
+import { BusinessActivity } from "../activities/BusinessActivity";
+import { activityRecursiveWalker } from "../utils/activityRecursiveWalker";
 
 export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
+	private readonly _runtimeSymbols: Map<symbol, any>;
 	private readonly _callstack: Array<StackFrame>;
-	private _tickFrame: StackFrame | null;
+	//private readonly _breakpoints: ReadonlyMap<BreakpointActivity["name"], BreakpointActivity>;
 	private _terminated: boolean;
+	private _paused: boolean;
 
 	public constructor(entryPoint: Activity) {
+		this._runtimeSymbols = new Map();
 		this._callstack = [];
 		this._terminated = false;
-		this._tickFrame = null;
+		this._paused = false;
+		// const breakpoints = new Map<BreakpointActivity["name"], BreakpointActivity>();
+		// activityRecursiveWalker(entryPoint, (activity) => {
+		// 	if (activity instanceof BreakpointActivity) {
+		// 		if (breakpoints.has(activity.name)) {
+		// 			throw new ArgumentError("entryPoint", `Breakpoint name duplicate detected '${activity.name}'`);
+		// 		}
+		// 		breakpoints.set(activity.name, activity);
+		// 	}
+		// });
+		// this._breakpoints = breakpoints;
 
 		const registers: Map<string, any> = new Map();
 		this._callstack.push({ activity: entryPoint, variables: registers, callCouner: 0 });
@@ -22,105 +39,194 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 	public get currentActivity(): Activity {
 		return this.tickFrame.activity;
 	}
+
 	public get currentActivityCallCount(): number {
 		return this.tickFrame.callCouner;
 	}
+
 	public get rootActivity(): Activity {
 		if (this._callstack.length === 0) {
 			throw new InvalidOperationError("Wrong operation at current state. Did you start WVM?");
 		}
 		return this._callstack[0].activity;
 	}
-	public get ancestorChain(): ReadonlyArray<Activity> {
+
+	public get stack(): ReadonlyArray<Activity> {
 		return this._callstack.map(frame => frame.activity).reverse();
 	}
+
+	public get runtimeSymbols(): WorkflowVirtualMachine.RuntimeSymbols {
+		return this._runtimeSymbols;
+	}
+
+	public get variables(): WorkflowVirtualMachine.Variables {
+		const define = (name: string, value: any, scope?: WorkflowVirtualMachine.Scope) => {
+			if (this.tickFrame.variables.has(name)) {
+				throw new InvalidOperationError(`Variable '${name}' already defined.`);
+			}
+			this.tickFrame.variables.set(name, {
+				scope: scope !== undefined ? scope : WorkflowVirtualMachine.Scope.LOCAL,
+				value
+			});
+		};
+		const getTuple = (name: string) => {
+			const headIndex = this._callstack.length - 1;
+			for (let callstackIndex = headIndex; callstackIndex >= 0; --callstackIndex) {
+				const frame: StackFrame = this._callstack[callstackIndex];
+				const valueTuple = frame.variables.get(name);
+				if (valueTuple !== undefined && (callstackIndex === headIndex || valueTuple.scope === WorkflowVirtualMachine.Scope.INHERIT)) {
+					return valueTuple;
+				}
+			}
+			throw new InvalidOperationError(`Variable '${name}' is not defined.`);
+		};
+		const getBoolean = (name: string) => {
+			const valueTuple = getTuple(name);
+			if (_.isBoolean(valueTuple.value)) { return valueTuple.value; }
+			throw new InvalidOperationError(`Variable '${name}' is not boolean.`);
+		};
+		const getInteger = (name: string) => {
+			const valueTuple = getTuple(name);
+			if (_.isSafeInteger(valueTuple.value)) { return valueTuple.value as number; }
+			throw new InvalidOperationError(`Variable '${name}' is not string.`);
+		};
+		const getNumber = (name: string) => {
+			const valueTuple = getTuple(name);
+			if (_.isNumber(valueTuple.value)) { return valueTuple.value; }
+			throw new InvalidOperationError(`Variable '${name}' is not string.`);
+		};
+		const getObject = (name: string) => {
+			const valueTuple = getTuple(name);
+			if (_.isObject(valueTuple.value)) { return valueTuple.value; }
+			throw new InvalidOperationError(`Variable '${name}' is not string.`);
+		};
+		const getString = (name: string) => {
+			const valueTuple = getTuple(name);
+			if (_.isString(valueTuple.value)) { return valueTuple.value; }
+			throw new InvalidOperationError(`Variable '${name}' is not string.`);
+		};
+		const has = (name: string) => {
+			const headIndex = this._callstack.length - 1;
+			for (let callstackIndex = headIndex; callstackIndex >= 0; --callstackIndex) {
+				const frame: StackFrame = this._callstack[callstackIndex];
+				const valueTuple = frame.variables.get(name);
+				if (valueTuple !== undefined && (callstackIndex === headIndex || valueTuple.scope === WorkflowVirtualMachine.Scope.INHERIT)) {
+					return true;
+				}
+			}
+			return false;
+		};
+		const set = (name: string, value: any) => {
+			const valueTuple = getTuple(name);
+			valueTuple.value = value;
+		};
+
+		return {
+			define, getBoolean, getInteger, getNumber, getObject, getString, has, set
+		};
+	}
+
+	public get breakpoints(): ReadonlyMap<BreakpointActivity["name"], BreakpointActivity> {
+		const rootActivity: Activity = this.rootActivity;
+		if (rootActivity instanceof NativeActivity) {
+			return rootActivity.breakpoints;
+		} else {
+			throw new InvalidOperationError("Root Activity does not provide breakpoints.");
+		}
+	}
+
+	public get isPaused(): boolean { return this._paused; }
 	public get isTerminated(): boolean { return this._terminated; }
 
-	public hasVariable(key: string | Symbol): boolean {
-		const headIndex = this._callstack.length - 1;
-		for (let callstackIndex = headIndex; callstackIndex >= 0; --callstackIndex) {
-			const frame: StackFrame = this._callstack[callstackIndex];
-			const variable = frame.variables.get(key);
-			if (
-				variable !== undefined &&
-				(
-					callstackIndex === headIndex
-					|| variable.scope === WorkflowVirtualMachine.Scope.PUBLIC
-					|| variable.scope === WorkflowVirtualMachine.Scope.SYMBOL
-				)
-			) {
-				return true;
-			}
+	public getActivityOid(activity: Activity): string {
+		const stackCopy = this.stack.slice();
+		let oidParts: Array<number> = [];
+
+		// Remove all head activities
+		while (stackCopy.length > 0 && activity !== stackCopy[0]) {
+			stackCopy.shift();
 		}
 
-		return false;
-	}
-	public variable(key: string | Symbol): WorkflowVirtualMachine.Variable;
-	public variable(key: string, scope: WorkflowVirtualMachine.Scope, value: any): WorkflowVirtualMachine.Variable;
-	public variable(key: string | Symbol, scope?: WorkflowVirtualMachine.Scope, value?: any): WorkflowVirtualMachine.Variable {
-		if (scope !== undefined) {
-			if (this.tickFrame.variables.has(key)) {
-				throw new InvalidOperationError(`Wrong operation. Variable '${key}' already registered.`);
-			}
-			const variable: WorkflowVirtualMachine.Variable = { scope, value };
-			this.tickFrame.variables.set(key, variable);
-			return variable;
+		if (stackCopy.length < 1) {
+			throw new ArgumentError("activity", "Activity was not found in the stack.");
 		}
 
-		const headIndex = this._callstack.length - 1;
-		for (let callstackIndex = headIndex; callstackIndex >= 0; --callstackIndex) {
-			const frame: StackFrame = this._callstack[callstackIndex];
-			const variable = frame.variables.get(key);
-			if (
-				variable !== undefined &&
-				(
-					callstackIndex === headIndex
-					|| variable.scope === WorkflowVirtualMachine.Scope.PUBLIC
-					|| variable.scope === WorkflowVirtualMachine.Scope.SYMBOL
-				)
-			) {
-				return variable;
+		stackCopy.shift(); // Remove passed activity
+
+		while (stackCopy.length > 0) {
+			const parentActivity: Activity = stackCopy.shift()!;
+			if (parentActivity instanceof NativeActivity) {
+				const childrenCount = parentActivity.children.length;
+				let oidPart: number | null = null;
+				for (let childIndex = 0; childIndex < childrenCount; ++childIndex) {
+					if (parentActivity.children[childIndex] === activity) {
+						oidPart = childIndex;
+						break;
+					}
+				}
+				if (oidPart === null) {
+					throw new InvalidOperationError("Broken workflow detected");
+				}
+				oidParts.unshift(oidPart);
 			}
+
+			activity = parentActivity;
 		}
 
-		throw new InvalidOperationError(`Unregistered variable: ${key}`);
+		return oidParts.join(".");
 	}
 
-	public async callstackPush(cancellationToken: CancellationToken, activity: Activity): Promise<void> {
+	public async stackPush(cancellationToken: CancellationToken, activity: Activity): Promise<void> {
 		const registers: Map<string, any> = new Map();
 		this._callstack.push({ activity, variables: registers, callCouner: 0 });
 		await this.tick(cancellationToken);
 	}
 
-	public callstackPop(): void {
+	public stackPop(): void {
 		const frame = this._callstack.pop();
 		if (frame === undefined) {
 			throw new InvalidOperationError("Stack underflow");
 		}
 	}
 
-	public async tick(cancellationToken: CancellationToken): Promise<void> {
+	public async tick(cancellationToken: CancellationToken): Promise<boolean> {
 		if (this._callstack.length === 0) {
 			this._terminated = true;
-			return; // Workflow is finished
+			this._paused = false;
+			return true; // Workflow is finished
 		}
 
 		const frame: StackFrame | undefined = this._callstack[this._callstack.length - 1];
 		if (frame !== undefined) {
-			this._tickFrame = frame;
-			try {
-				const { activity } = frame;
-				++frame.callCouner;
+			if (frame.activity instanceof BreakpointActivity && frame.callCouner > 0) {
+				const isResumeAllowed = frame.activity.isResumeAllowed(this);
+				if (isResumeAllowed === true) {
+					this._paused = false;
+				} else {
+					this._paused = true;
+					return true; // Workflow is idle (due paused)
+				}
+			}
+			const { activity } = frame;
+			++frame.callCouner;
+			if (activity instanceof NativeActivity) {
 				await activity.execute(cancellationToken, this);
-			} finally {
-				this._tickFrame = null;
+			} else if (activity instanceof BusinessActivity) {
+				await activity.execute(cancellationToken, this);
+				this.stackPop(); // BusinessActivity does not know anything of the stack
+			} else if (activity instanceof BreakpointActivity) {
+				activity.execute(this);
+			} else {
+				throw new InvalidOperationError(`Not supported Activity type: ${activity.constructor.name}`);
 			}
 		}
+
+		return false;
 	}
 
 	private get tickFrame(): StackFrame {
-		if (this._tickFrame !== null) {
-			return this._tickFrame;
+		if (this._callstack.length > 0) {
+			return this._callstack[this._callstack.length - 1];
 		}
 		throw new InvalidOperationError("Wrong operation at current state. Did you start WVM?");
 	}
@@ -129,6 +235,6 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 
 interface StackFrame {
 	readonly activity: Activity;
-	readonly variables: Map<string | Symbol, WorkflowVirtualMachine.Variable>;
+	readonly variables: Map<string, { readonly scope: WorkflowVirtualMachine.Scope, value: any }>;
 	callCouner: number;
 }

@@ -1,30 +1,45 @@
 import { CancellationToken } from "@zxteam/contract";
+import { InvalidOperationError } from "@zxteam/errors";
 
 import { Activity } from "./Activity";
+import { NativeActivity } from "./NativeActivity";
+
 import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 
-const LoopBreak = Symbol("LoopActivity.Break");
-
 @Activity.Id("c41a3d31-ba3d-4b41-acb5-26b7dd63547f")
-export class LoopActivity extends Activity {
-	public constructor(child: Activity) { super({}, child); }
-
-	public static break(wvm: WorkflowVirtualMachine): void {
-		wvm.variable(LoopBreak).value = true;
+export class LoopActivity extends NativeActivity {
+	public static of(ctx: WorkflowVirtualMachine.ExecutionContext): LoopActivity {
+		for (const activity of ctx.stack) {
+			if (activity instanceof LoopActivity) {
+				return activity;
+			}
+		}
+		throw new InvalidOperationError("LoopActivity was not found in current stack.");
 	}
 
-	protected async onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): Promise<void> {
-		let breakFlagVariable: WorkflowVirtualMachine.Variable;
-		if (wvm.currentActivityCallCount === 1) {
-			breakFlagVariable = wvm.variable(LoopBreak, WorkflowVirtualMachine.Scope.SYMBOL, false);
-		} else {
-			breakFlagVariable = wvm.variable(LoopBreak);
+	public constructor(child: NativeActivity) { super({}, child); }
+
+	public break(ctx: WorkflowVirtualMachine.ExecutionContext): void {
+		const oid = ctx.getActivityOid(this);
+
+		const { variables } = ctx;
+
+		variables.set(oid, true);
+	}
+
+	protected async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+		const oid = ctx.getActivityOid(this);
+
+		const { variables } = ctx;
+
+		if (!variables.has(oid)) {
+			variables.define(oid, false, WorkflowVirtualMachine.Scope.INHERIT);
 		}
 
-		if (breakFlagVariable.value === false) {
-			await wvm.callstackPush(cancellationToken, this.children[0]);
+		if (variables.getBoolean(oid)) {
+			ctx.stackPop(); // remove itself
 		} else {
-			wvm.callstackPop(); // remove itself
+			await ctx.stackPush(cancellationToken, this.children[0]);
 		}
 	}
 }
