@@ -16,9 +16,9 @@ export class RandomUintActivity extends BusinessActivity {
 
 		const u8 = crypto.randomBytes(4);
 		const u32bytes = u8.buffer.slice(0, 4); // last four bytes as a new `ArrayBuffer`
-		const int = new Int32Array(u32bytes)[0];
+		const uint = new Uint32Array(u32bytes)[0];
 
-		ctx.variables.set(opts.targetVariable, int);
+		ctx.variables.set(opts.targetVariable, uint);
 	}
 }
 

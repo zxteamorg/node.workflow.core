@@ -152,7 +152,7 @@ async function main(): Promise<void> {
 
 	// const workflow = new ConsoleLogActivity({ text: "one" });
 
-	workflowInvoker = new WorkflowInvoker(workflow);
+	workflowInvoker = new WorkflowInvoker("example", workflow);
 
 	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT").then((brk) => {
 		console.log("UUUha! TEST_BREAKPOINT is reached. Will resume it in 3 seconds. Description: " + brk.description);

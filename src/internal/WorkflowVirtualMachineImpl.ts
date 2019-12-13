@@ -10,13 +10,15 @@ import { BusinessActivity } from "../activities/BusinessActivity";
 import { activityRecursiveWalker } from "../utils/activityRecursiveWalker";
 
 export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
+	private readonly _workflowId: string;
 	private readonly _runtimeSymbols: Map<symbol, any>;
 	private readonly _callstack: Array<StackFrame>;
 	//private readonly _breakpoints: ReadonlyMap<BreakpointActivity["name"], BreakpointActivity>;
 	private _terminated: boolean;
 	private _paused: boolean;
 
-	public constructor(entryPoint: Activity) {
+	public constructor(workflowId: string, entryPoint: Activity) {
+		this._workflowId = workflowId;
 		this._runtimeSymbols = new Map();
 		this._callstack = [];
 		this._terminated = false;
@@ -124,6 +126,10 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 		return {
 			define, getBoolean, getInteger, getNumber, getObject, getString, has, set
 		};
+	}
+
+	public get workflowId(): string {
+		return this._workflowId;
 	}
 
 	public get breakpoints(): ReadonlyMap<BreakpointActivity["name"], BreakpointActivity> {

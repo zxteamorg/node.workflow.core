@@ -1,6 +1,6 @@
 {
 	"name": "@zxteam/workflow.core",
-	"version": "0.0.4",
+	"version": "0.0.5",
 	"description": "ZXTeam's Workflow is used to create applications that execute an ordered business process.",
 	"author": {
 		"name": "ZXTeam",
@@ -26,7 +26,7 @@
 	"dependencies": {
 		"@types/node": "^11.15.3",
 		"@zxteam/cancellation": "^6.0.25",
-		"@zxteam/contract": "^6.0.22",
+		"@zxteam/contract": "^6.0.40",
 		"@zxteam/errors": "^6.0.33",
 		"lodash": "^4.17.15",
 		"reflect-metadata": "^0.1.13"
