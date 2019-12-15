@@ -4,7 +4,7 @@ import { Activity } from "./activities";
 import { WorkflowVirtualMachine } from "./WorkflowVirtualMachine";
 import { WorkflowVirtualMachineImpl } from "./internal/WorkflowVirtualMachineImpl";
 import { BreakpointActivity } from "./activities/BreakpointActivity";
-import { ArgumentError } from "@zxteam/errors";
+import { ArgumentError, wrapErrorIfNeeded } from "@zxteam/errors";
 import { sleep, DUMMY_CANCELLATION_TOKEN } from "@zxteam/cancellation";
 
 export class WorkflowInvoker {
@@ -20,12 +20,20 @@ export class WorkflowInvoker {
 	}
 
 	public async invoke(cancellationToken: CancellationToken) {
-		do {
-			const isIdle = await this._wvm.tick(cancellationToken);
-			if (isIdle) {
-				await sleep(DUMMY_CANCELLATION_TOKEN, 1000);
+		try {
+			do {
+				const isIdle = await this._wvm.tick(cancellationToken);
+				if (isIdle) {
+					await sleep(DUMMY_CANCELLATION_TOKEN, 1000);
+				}
+			} while (!this._wvm.isTerminated);
+		} catch (e) {
+			const err: Error = wrapErrorIfNeeded(e);
+			for (const breakpoint of this._wvm.breakpoints.values()) {
+				breakpoint.notifyAwaitersForCrash(err, this._wvm);
 			}
-		} while (!this._wvm.isTerminated);
+			throw e;
+		}
 	}
 
 	public waitForBreakpoint(cancellationToken: CancellationToken, breakpointName: string): Promise<BreakpointActivity> {

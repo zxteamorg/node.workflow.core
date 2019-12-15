@@ -2,7 +2,7 @@ import { CancellationToken } from "@zxteam/contract";
 
 import {
 	Activity, BreakpointActivity, BusinessActivity, ContextActivity,
-	ConsoleLogActivity, DelayActivity, LoopActivity, NativeActivity,
+	ConsoleLogActivity, DelayActivity, LoopActivity, NativeActivity, RandomIntActivity,
 	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity
 } from "../src";
 import { WorkflowInvoker } from "../src";
@@ -46,6 +46,14 @@ async function main(): Promise<void> {
 			} else {
 				ctx.variables.set("age", currentAge + 1);
 			}
+		}
+	}
+
+	class CrashTestActivity extends BusinessActivity {
+		public constructor() { super({}); }
+
+		protected onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.ExecutionContext): void {
+			throw "Crash";
 		}
 	}
 
@@ -116,29 +124,30 @@ async function main(): Promise<void> {
 
 	const workflow = new ContextActivity({ appName: "example1", random: 0 },
 		new SequenceActivity(
-			new RandomUintActivity({ targetVariable: "random" }),
+			//new CrashTestActivity(),
+			new RandomIntActivity({ targetVariable: "random" }),
 			new ContextActivity({ name: "Maks", age: 40 },
 				new IfActivity({
 					conditionActivity:
 						new IsRandomPositive(),
-					trueActivity:
-						new LoopActivity(
-							new SequenceActivity(
-								new ConsoleLogActivity({ text: "one" }),
-								new DelayActivity({ durationMilliseconds: 100 }),
-								new ConsoleLogActivity({ text: "two" }),
-								new DelayActivity({ durationMilliseconds: 200 }),
-								new ConsoleLogActivity({ text: "three" }),
-								new DelayActivity({ durationMilliseconds: 300 }),
-								new PersonRenderActivity(),
-								new IncrementAgeAndBreakLoop()
-							)
-						),
-					falseActivity:
-						new ConsoleLogActivity({ text: "Random value is NEGATIVE" })
+					trueActivity: new LoopActivity(
+						new SequenceActivity(
+							new ConsoleLogActivity({ text: "Random value is POSITIVE" }),
+							new ConsoleLogActivity({ text: "one" }),
+							new DelayActivity({ durationMilliseconds: 100 }),
+							new ConsoleLogActivity({ text: "two" }),
+							new DelayActivity({ durationMilliseconds: 200 }),
+							new ConsoleLogActivity({ text: "three" }),
+							new DelayActivity({ durationMilliseconds: 300 }),
+							new PersonRenderActivity(),
+							new IncrementAgeAndBreakLoop()
+						)
+					),
+					falseActivity: new ConsoleLogActivity({ text: "Random value is NEGATIVE" })
 				})
 			),
-			new BreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" })
+			new BreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" }),
+			new ConsoleLogActivity({ text: "Workflow is finished" })
 		)
 	);
 
@@ -154,13 +163,27 @@ async function main(): Promise<void> {
 
 	workflowInvoker = new WorkflowInvoker("example", workflow);
 
-	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT").then((brk) => {
-		console.log("UUUha! TEST_BREAKPOINT is reached. Will resume it in 3 seconds. Description: " + brk.description);
-		setTimeout(function () {
-			workflowInvoker.resumeBreakpoint("TEST_BREAKPOINT");
-			console.log("Resumed TEST_BREAKPOINT");
-		}, 3000);
-	});
+	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT")
+		.then((brk) => {
+			console.log("UUUha! TEST_BREAKPOINT is reached. Will resume it in 3 seconds. Description: " + brk.description);
+			setTimeout(function () {
+				workflowInvoker.resumeBreakpoint("TEST_BREAKPOINT");
+				console.log("Resumed TEST_BREAKPOINT");
+			}, 3000);
+		})
+		.catch(reason => {
+			console.log("Wau1! TEST_BREAKPOINT is crashed");
+		});
+
+	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT")
+		.catch(reason => {
+			console.log("Wau2! TEST_BREAKPOINT is crashed");
+		});
+
+	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT")
+		.catch(reason => {
+			console.log("Wau3! TEST_BREAKPOINT is crashed");
+		});
 
 	await workflowInvoker.invoke(dummyCancellationToken);
 	//await WorkflowInvoker.run(dummyCancellationToken, workflow);
@@ -168,7 +191,7 @@ async function main(): Promise<void> {
 
 main()
 	.then(() => { process.exit(0); })
-	.catch((e: Error) => console.error(e.stack));
+	.catch((e: Error) => console.error(e && e.stack || e));
 
 // const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "Admin> " });
 // rl.prompt();

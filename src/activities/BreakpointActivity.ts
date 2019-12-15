@@ -81,6 +81,17 @@ export class BreakpointActivity extends Activity {
 		}
 	}
 
+	/**
+	 * Used to wakeup all awaiters when workflow crashed
+	 */
+	public notifyAwaitersForCrash(error: Error, ctx: WorkflowVirtualMachine.NativeExecutionContext): void {
+		const { runtimeSymbols } = ctx;
+		const awaiter: AwaiterData | undefined = runtimeSymbols.get(this._breakpointAwaiterSymbol);
+		if (awaiter !== undefined) {
+			awaiter.reject(error);
+		}
+	}
+
 	public wait(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<BreakpointActivity> {
 		const { runtimeSymbols } = ctx;
 		let awaiter: AwaiterData;
@@ -94,8 +105,12 @@ export class BreakpointActivity extends Activity {
 					for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
 					resolve(this);
 				};
+				const awaiterReject = (reason: any) => {
+					for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
+					reject(reason);
+				};
 				(awaiter as any).resolve = awaiterResolve;
-				(awaiter as any).reject = reject;
+				(awaiter as any).reject = awaiterReject;
 			});
 
 			runtimeSymbols.set(this._breakpointAwaiterSymbol, awaiter);
@@ -108,7 +123,6 @@ export class BreakpointActivity extends Activity {
 			} catch (e) {
 				awaiter.reject(e);
 			}
-			for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
 		}
 
 		cancellationToken.addCancelListener(cancel);
