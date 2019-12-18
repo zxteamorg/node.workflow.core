@@ -201,7 +201,7 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 				await activity.execute(cancellationToken, this);
 				this.stackPop(); // BusinessActivity does not know anything of the stack
 			} else if (activity instanceof BreakpointActivity) {
-				await activity.execute(this);
+				await activity.execute(cancellationToken, this);
 				const isResumeAllowed = activity.isResumeAllowed(this);
 				if (isResumeAllowed === true) {
 					this._paused = false;
