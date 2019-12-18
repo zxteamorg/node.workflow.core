@@ -5,13 +5,14 @@ import { Activity } from "./Activity";
 import { NativeActivity } from "./NativeActivity";
 
 import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
+import { IfElement } from "../elements/IfElement";
 
 @Activity.Id("58dc3233-bd64-4388-8384-c3585e8df05c")
 export class IfActivity extends NativeActivity {
-	public static of(ctx: WorkflowVirtualMachine.ExecutionContext): IfActivity {
+	public static of(ctx: WorkflowVirtualMachine.ExecutionContext): IfElement {
 		for (const activity of ctx.stack) {
 			if (activity instanceof IfActivity) {
-				return activity;
+				return new IfElement(ctx, ctx.getActivityOid(activity));
 			}
 		}
 		throw new InvalidOperationError("IfActivity was not found in current stack.");

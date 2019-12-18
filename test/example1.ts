@@ -3,7 +3,7 @@ import { CancellationToken } from "@zxteam/contract";
 import {
 	Activity, BreakpointActivity, BusinessActivity, ContextActivity,
 	ConsoleLogActivity, DelayActivity, LoopActivity, NativeActivity, RandomIntActivity,
-	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity
+	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity, IfElement
 } from "../src";
 import { WorkflowInvoker } from "../src";
 
@@ -12,6 +12,13 @@ import { createInterface } from "readline";
 // let testStartBreakpoint: BreakpointActivity<any>;
 // let testFinishBreakpoint: BreakpointActivity<any>;
 let workflowInvoker: WorkflowInvoker;
+
+class MyBreakpointActivity extends BreakpointActivity {
+	public async execute(ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+		console.log("MyBreakpointActivity#execute");
+		return super.execute(ctx);
+	}
+}
 
 
 async function main(): Promise<void> {
@@ -42,7 +49,7 @@ async function main(): Promise<void> {
 			const currentAge = ctx.variables.getInteger("age");
 
 			if (currentAge > 45) {
-				LoopActivity.of(ctx).break(ctx);
+				LoopActivity.of(ctx).break();
 			} else {
 				ctx.variables.set("age", currentAge + 1);
 			}
@@ -57,17 +64,16 @@ async function main(): Promise<void> {
 		}
 	}
 
-	class IsRandomPositive extends NativeActivity {
+	class IsRandomPositive extends BusinessActivity {
 		public constructor() { super({}); }
 
-		protected onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine): void | Promise<void> {
-			const ifActivity: IfActivity = IfActivity.of(wvm);
+		protected onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine.ExecutionContext): void {
+			const ifElement: IfElement = IfActivity.of(wvm);
 			if (wvm.variables.getInteger("random") > 0) {
-				ifActivity.markTrue(wvm);
+				ifElement.markTrue();
 			} else {
-				ifActivity.markFalse(wvm);
+				ifElement.markFalse();
 			}
-			wvm.stackPop(); // Remove itself
 		}
 	}
 
@@ -146,7 +152,7 @@ async function main(): Promise<void> {
 					falseActivity: new ConsoleLogActivity({ text: "Random value is NEGATIVE" })
 				})
 			),
-			new BreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" }),
+			new MyBreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" }),
 			new ConsoleLogActivity({ text: "Workflow is finished" })
 		)
 	);
@@ -165,11 +171,11 @@ async function main(): Promise<void> {
 
 	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT")
 		.then((brk) => {
-			console.log("UUUha! TEST_BREAKPOINT is reached. Will resume it in 3 seconds. Description: " + brk.description);
+			console.log("UUUha! TEST_BREAKPOINT is reached. Will resume it in 5 seconds. Description: " + brk.description);
 			setTimeout(function () {
 				workflowInvoker.resumeBreakpoint("TEST_BREAKPOINT");
 				console.log("Resumed TEST_BREAKPOINT");
-			}, 3000);
+			}, 5000);
 		})
 		.catch(reason => {
 			console.log("Wau1! TEST_BREAKPOINT is crashed");

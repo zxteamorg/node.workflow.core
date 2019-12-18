@@ -13,7 +13,6 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 	private readonly _workflowId: string;
 	private readonly _runtimeSymbols: Map<symbol, any>;
 	private readonly _callstack: Array<StackFrame>;
-	//private readonly _breakpoints: ReadonlyMap<BreakpointActivity["name"], BreakpointActivity>;
 	private _terminated: boolean;
 	private _paused: boolean;
 
@@ -23,16 +22,6 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 		this._callstack = [];
 		this._terminated = false;
 		this._paused = false;
-		// const breakpoints = new Map<BreakpointActivity["name"], BreakpointActivity>();
-		// activityRecursiveWalker(entryPoint, (activity) => {
-		// 	if (activity instanceof BreakpointActivity) {
-		// 		if (breakpoints.has(activity.name)) {
-		// 			throw new ArgumentError("entryPoint", `Breakpoint name duplicate detected '${activity.name}'`);
-		// 		}
-		// 		breakpoints.set(activity.name, activity);
-		// 	}
-		// });
-		// this._breakpoints = breakpoints;
 
 		const registers: Map<string, any> = new Map();
 		this._callstack.push({ activity: entryPoint, variables: registers, callCouner: 0 });
@@ -204,15 +193,6 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 
 		const frame: StackFrame | undefined = this._callstack[this._callstack.length - 1];
 		if (frame !== undefined) {
-			if (frame.activity instanceof BreakpointActivity && frame.callCouner > 0) {
-				const isResumeAllowed = frame.activity.isResumeAllowed(this);
-				if (isResumeAllowed === true) {
-					this._paused = false;
-				} else {
-					this._paused = true;
-					return true; // Workflow is idle (due paused)
-				}
-			}
 			const { activity } = frame;
 			++frame.callCouner;
 			if (activity instanceof NativeActivity) {
@@ -221,7 +201,14 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 				await activity.execute(cancellationToken, this);
 				this.stackPop(); // BusinessActivity does not know anything of the stack
 			} else if (activity instanceof BreakpointActivity) {
-				activity.execute(this);
+				await activity.execute(this);
+				const isResumeAllowed = activity.isResumeAllowed(this);
+				if (isResumeAllowed === true) {
+					this._paused = false;
+				} else {
+					this._paused = true;
+					return true; // Workflow is idle (due paused)
+				}
 			} else {
 				throw new InvalidOperationError(`Not supported Activity type: ${activity.constructor.name}`);
 			}
