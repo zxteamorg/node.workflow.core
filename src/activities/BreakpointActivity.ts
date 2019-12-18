@@ -67,7 +67,7 @@ export class BreakpointActivity extends Activity {
 		return false;
 	}
 
-	public async execute(ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+	public async execute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		const { runtimeSymbols } = ctx;
 
 		if (runtimeSymbols.has(this._breakpointAwaiterSymbol)) {
