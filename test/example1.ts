@@ -14,9 +14,9 @@ import { createInterface } from "readline";
 let workflowInvoker: WorkflowInvoker;
 
 class MyBreakpointActivity extends BreakpointActivity {
-	public async execute(ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+	public async execute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		console.log("MyBreakpointActivity#execute");
-		return super.execute(ctx);
+		return super.execute(cancellationToken, ctx);
 	}
 }
 
