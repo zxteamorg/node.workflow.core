@@ -13,6 +13,31 @@ import { createInterface } from "readline";
 // let testFinishBreakpoint: BreakpointActivity<any>;
 let workflowInvoker: WorkflowInvoker;
 
+// class SetupBreakpointActivity extends BreakpointActivity {
+// 	private readonly _breakpointResumedSymbol: symbol;
+
+// 	public constructor(opts: BreakpointActivity.Opts, child: Activity) {
+// 		super(opts);
+// 		this._breakpointResumedSymbol = Symbol.for("BreakpointActivity.Awaiter:" + this.name);
+// 	}
+
+// 	public async execute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+// 		const { runtimeSymbols } = ctx;
+
+// 		this.resolveAwaiters(runtimeSymbols);
+
+// 		if (this.isResumeAllowed(ctx)) {
+// 			if (runtimeSymbols.has(this._breakpointResumedSymbol)) {
+// 				// remove itself
+// 				ctx.stackPop();
+// 			} else {
+// 				// push child
+// 				ctx.stackPush(cancellationToken);
+// 			}
+// 		}
+// 	}
+// }
+
 class MyBreakpointActivity extends BreakpointActivity {
 	public async execute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		console.log("MyBreakpointActivity#execute");
@@ -34,8 +59,6 @@ async function main(): Promise<void> {
 
 	@Activity.Id("46d44efd-7341-4b7e-a581-41b605ac5f6c")
 	class PersonRenderActivity extends BusinessActivity {
-		public constructor() { super({}); }
-
 		protected onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.ExecutionContext) {
 			console.log(`Application '${ctx.variables.getString("appName")}' The ${ctx.variables.getString("name")} is ${ctx.variables.getInteger("age")} years old.`);
 		}
@@ -43,8 +66,6 @@ async function main(): Promise<void> {
 
 	@Activity.Id("5b839031-04ff-4e52-849a-194ddd28b094")
 	class IncrementAgeAndBreakLoop extends BusinessActivity {
-		public constructor() { super({}); }
-
 		protected onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.ExecutionContext): void | Promise<void> {
 			const currentAge = ctx.variables.getInteger("age");
 
@@ -57,16 +78,12 @@ async function main(): Promise<void> {
 	}
 
 	class CrashTestActivity extends BusinessActivity {
-		public constructor() { super({}); }
-
 		protected onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.ExecutionContext): void {
 			throw "Crash";
 		}
 	}
 
 	class IsRandomPositive extends BusinessActivity {
-		public constructor() { super({}); }
-
 		protected onExecute(cancellationToken: CancellationToken, wvm: WorkflowVirtualMachine.ExecutionContext): void {
 			const ifElement: IfElement = IfActivity.of(wvm);
 			if (wvm.variables.getInteger("random") > 0) {
@@ -129,10 +146,11 @@ async function main(): Promise<void> {
 
 
 	const workflow = new ContextActivity({ appName: "example1", random: 0 },
-		new SequenceActivity(
-			//new CrashTestActivity(),
-			new RandomIntActivity({ targetVariable: "random" }),
-			new ContextActivity({ name: "Maks", age: 40 },
+		new BreakpointActivity({ name: "SETUP_BREAKPOINT", description: "Setup data" },
+			new SequenceActivity(
+				//new CrashTestActivity(),
+				new RandomIntActivity({ targetVariable: "random" }),
+				//new ContextActivity({ name: "Maks", age: 40 },
 				new IfActivity({
 					conditionActivity:
 						new IsRandomPositive(),
@@ -151,9 +169,11 @@ async function main(): Promise<void> {
 					),
 					falseActivity: new ConsoleLogActivity({ text: "Random value is NEGATIVE" })
 				})
-			),
-			new MyBreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" }),
-			new ConsoleLogActivity({ text: "Workflow is finished" })
+				//)
+				,
+				new MyBreakpointActivity({ name: "TEST_BREAKPOINT", description: "Waiting user's approval to continue" }),
+				new ConsoleLogActivity({ text: "Workflow is finished" })
+			)
 		)
 	);
 
@@ -168,6 +188,14 @@ async function main(): Promise<void> {
 	// const workflow = new ConsoleLogActivity({ text: "one" });
 
 	workflowInvoker = new WorkflowInvoker("example", workflow);
+
+	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "SETUP_BREAKPOINT").then(() => {
+		const variables = workflowInvoker.currentExecutionContext.variables;
+		variables.define("name", "Maks", WorkflowVirtualMachine.Scope.INHERIT);
+		variables.define("age", 40, WorkflowVirtualMachine.Scope.INHERIT);
+		workflowInvoker.resumeBreakpoint("SETUP_BREAKPOINT");
+	});
+
 
 	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "TEST_BREAKPOINT")
 		.then((brk) => {

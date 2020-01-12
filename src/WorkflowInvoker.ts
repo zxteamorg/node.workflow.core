@@ -1,11 +1,12 @@
 import { CancellationToken } from "@zxteam/contract";
+import { ArgumentError, InvalidOperationError, wrapErrorIfNeeded } from "@zxteam/errors";
+import { sleep, DUMMY_CANCELLATION_TOKEN } from "@zxteam/cancellation";
 
-import { Activity } from "./activities";
+import { Activity } from "./activities/Activity";
+import { BreakpointElement } from "./elements/BreakpointElement";
+
 import { WorkflowVirtualMachine } from "./WorkflowVirtualMachine";
 import { WorkflowVirtualMachineImpl } from "./internal/WorkflowVirtualMachineImpl";
-import { BreakpointActivity } from "./activities/BreakpointActivity";
-import { ArgumentError, wrapErrorIfNeeded } from "@zxteam/errors";
-import { sleep, DUMMY_CANCELLATION_TOKEN } from "@zxteam/cancellation";
 
 export class WorkflowInvoker {
 	private readonly _wvm: WorkflowVirtualMachine;
@@ -17,6 +18,16 @@ export class WorkflowInvoker {
 
 	public constructor(workflowId: string, activity: Activity) {
 		this._wvm = new WorkflowVirtualMachineImpl(workflowId, activity);
+	}
+
+	public get currentExecutionContext(): WorkflowVirtualMachine.ExecutionContext {
+		if (!this._wvm.isPaused) {
+			throw new InvalidOperationError("Wrong operation at current state. A currentExecutionContext is available in pause-state only.");
+		}
+		if (this._wvm.isTerminated) {
+			throw new InvalidOperationError("Wrong operation at current state. A WorkflowVirtualMachine is terminated.");
+		}
+		return this._wvm;
 	}
 
 	public async invoke(cancellationToken: CancellationToken) {
@@ -36,7 +47,7 @@ export class WorkflowInvoker {
 		}
 	}
 
-	public waitForBreakpoint(cancellationToken: CancellationToken, breakpointName: string): Promise<BreakpointActivity> {
+	public waitForBreakpoint(cancellationToken: CancellationToken, breakpointName: string): Promise<BreakpointElement> {
 		const breakpointActivity = this._wvm.breakpoints.get(breakpointName);
 		if (breakpointActivity === undefined) {
 			throw new ArgumentError("breakpointName", `A breakpoint '${breakpointName}' was not found`);

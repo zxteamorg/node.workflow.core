@@ -19,7 +19,7 @@ export class LoopActivity extends NativeActivity {
 		throw new InvalidOperationError("LoopActivity was not found in current stack.");
 	}
 
-	public constructor(child: NativeActivity) { super({}, child); }
+	public constructor(child: NativeActivity) { super(child); }
 
 	protected async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		const oid = ctx.getActivityOid(this);

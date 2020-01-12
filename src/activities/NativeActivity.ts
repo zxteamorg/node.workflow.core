@@ -15,8 +15,8 @@ export abstract class NativeActivity extends Activity {
 	private readonly _breakpoints: ReadonlyMap<BreakpointActivity["name"], BreakpointActivity>;
 	private readonly _children: ReadonlyArray<Activity>;
 
-	public constructor(opts: Activity.Opts, ...children: ReadonlyArray<Activity>) {
-		super(opts);
+	public constructor(...children: ReadonlyArray<Activity>) {
+		super();
 		this._children = Object.freeze(children);
 		const breakpoints = new Map<BreakpointActivity["name"], BreakpointActivity>();
 		activityRecursiveWalker(this, (activity) => {

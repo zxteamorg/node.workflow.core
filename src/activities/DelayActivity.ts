@@ -7,11 +7,15 @@ import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 
 @Activity.Id("244eee7e-9b60-4f31-a20c-db242a937497")
 export class DelayActivity extends NativeActivity {
-	public constructor(opts: DelayActivity.Opts) { super(opts); }
+	private readonly _durationMilliseconds: number;
+
+	public constructor(opts: DelayActivity.Opts) {
+		super();
+		this._durationMilliseconds = opts.durationMilliseconds;
+	}
 
 	protected async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
-		const opts = this.opts as DelayActivity.Opts;
-		await sleep(cancellationToken, opts.durationMilliseconds);
+		await sleep(cancellationToken, this._durationMilliseconds);
 		ctx.stackPop(); // remove itself
 	}
 }

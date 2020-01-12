@@ -195,20 +195,20 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 		if (frame !== undefined) {
 			const { activity } = frame;
 			++frame.callCouner;
-			if (activity instanceof NativeActivity) {
-				await activity.execute(cancellationToken, this);
-			} else if (activity instanceof BusinessActivity) {
+			if (activity instanceof BusinessActivity) {
 				await activity.execute(cancellationToken, this);
 				this.stackPop(); // BusinessActivity does not know anything of the stack
 			} else if (activity instanceof BreakpointActivity) {
+				this._paused = true;
 				await activity.execute(cancellationToken, this);
 				const isResumeAllowed = activity.isResumeAllowed(this);
 				if (isResumeAllowed === true) {
 					this._paused = false;
 				} else {
-					this._paused = true;
 					return true; // Workflow is idle (due paused)
 				}
+			} else if (activity instanceof NativeActivity) {
+				await activity.execute(cancellationToken, this);
 			} else {
 				throw new InvalidOperationError(`Not supported Activity type: ${activity.constructor.name}`);
 			}

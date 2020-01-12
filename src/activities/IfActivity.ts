@@ -27,7 +27,7 @@ export class IfActivity extends NativeActivity {
 		if (opts.falseActivity !== undefined) {
 			children.push(opts.falseActivity);
 		}
-		super({}, ...children);
+		super(...children);
 	}
 
 	public markTrue(ctx: WorkflowVirtualMachine.ExecutionContext): void {

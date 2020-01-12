@@ -5,10 +5,12 @@ import { sleep } from "@zxteam/cancellation";
 import { Activity } from "./Activity";
 
 import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
+import { BreakpointElement } from "../elements/BreakpointElement";
+import { NativeActivity } from "./NativeActivity";
 
 @Activity.Id("7a6edb9e-0e66-4680-b53d-e36d03e52541")
-export class BreakpointActivity extends Activity {
-	// public static of(wvm: WorkflowVirtualMachine, breakpointName: string): BreakpointActivity {
+export class BreakpointActivity extends NativeActivity {
+	// public static of(wvm: WorkflowVirtualMachine, breakpointName: string): BreakpointElement {
 	// 	function recursiveFinder(activities: ReadonlyArray<Activity>): BreakpointActivity | null {
 	// 		for (const activity of activities) {
 	// 			if (activity instanceof BreakpointActivity) {
@@ -34,22 +36,27 @@ export class BreakpointActivity extends Activity {
 
 	private readonly _breakpointAwaiterSymbol: symbol;
 	private readonly _breakpointResumeSymbol: symbol;
+	private readonly _breakpointChildSymbol: symbol;
 
-	public constructor(opts: BreakpointActivity.Opts) {
-		super(opts);
+	private readonly _name: string;
+	private readonly _description: string;
+
+	public constructor(opts: BreakpointActivity.Opts, child?: Activity) {
+		if (child !== undefined) {
+			super(child);
+		} else {
+			super();
+		}
+		this._name = opts.name;
+		this._description = opts.description;
 		this._breakpointAwaiterSymbol = Symbol.for("BreakpointActivity.Awaiter:" + this.name);
 		this._breakpointResumeSymbol = Symbol.for("BreakpointActivity.Resume:" + this.name);
+		this._breakpointChildSymbol = Symbol.for("BreakpointActivity.Child:" + this.name);
 	}
 
-	public get name(): string {
-		const opts = this.opts as BreakpointActivity.Opts;
-		return opts.name;
-	}
+	public get name(): string { return this._name; }
 
-	public get description(): string {
-		const opts = this.opts as BreakpointActivity.Opts;
-		return opts.description;
-	}
+	public get description(): string { return this._description; }
 
 	/**
 	 * Return `false` if breakpoint in active state (in other words, the breakpoint blocks execution)
@@ -67,17 +74,25 @@ export class BreakpointActivity extends Activity {
 		return false;
 	}
 
-	public async execute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
+	public async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		const { runtimeSymbols } = ctx;
 
-		if (runtimeSymbols.has(this._breakpointAwaiterSymbol)) {
-			// Notify awaiters
-			const awaiter: AwaiterData = runtimeSymbols.get(this._breakpointAwaiterSymbol);
-			awaiter.resolve();
-		}
+		this.resolveAwaiters(runtimeSymbols);
 
 		if (this.isResumeAllowed(ctx)) {
-			ctx.stackPop(); // remove itself
+			if (this.children.length === 0) {
+				// remove itself
+				ctx.stackPop();
+			} else {
+				if (runtimeSymbols.has(this._breakpointChildSymbol)) {
+					// remove itself
+					ctx.stackPop();
+				} else {
+					// push child
+					ctx.stackPush(cancellationToken, this.children[0]);
+					runtimeSymbols.set(this._breakpointChildSymbol, null); // value does not matter
+				}
+			}
 		}
 	}
 
@@ -92,7 +107,7 @@ export class BreakpointActivity extends Activity {
 		}
 	}
 
-	public wait(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<BreakpointActivity> {
+	public wait(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<BreakpointElement> {
 		const { runtimeSymbols } = ctx;
 		let awaiter: AwaiterData;
 		if (runtimeSymbols.has(this._breakpointAwaiterSymbol)) {
@@ -100,10 +115,10 @@ export class BreakpointActivity extends Activity {
 		} else {
 			awaiter = { cancellationTokenReleasers: [] } as any;
 
-			(awaiter as any).promise = new Promise<BreakpointActivity>((resolve, reject) => {
+			(awaiter as any).promise = new Promise<BreakpointElement>((resolve, reject) => {
 				const awaiterResolve = () => {
 					for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
-					resolve(this);
+					resolve(new BreakpointElement(ctx, this.name, this.description, this._breakpointResumeSymbol));
 				};
 				const awaiterReject = (reason: any) => {
 					for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
@@ -133,10 +148,18 @@ export class BreakpointActivity extends Activity {
 		return awaiter.promise;
 	}
 
-	public resume(wvm: WorkflowVirtualMachine): void {
-		const { runtimeSymbols } = wvm;
+	public resume(ctx: WorkflowVirtualMachine.NativeExecutionContext): void {
+		const { runtimeSymbols } = ctx;
 
 		runtimeSymbols.set(this._breakpointResumeSymbol, true);
+	}
+
+	protected resolveAwaiters(runtimeSymbols: WorkflowVirtualMachine.RuntimeSymbols): void {
+		if (runtimeSymbols.has(this._breakpointAwaiterSymbol)) {
+			// Notify awaiters
+			const awaiter: AwaiterData = runtimeSymbols.get(this._breakpointAwaiterSymbol);
+			awaiter.resolve();
+		}
 	}
 }
 
@@ -150,7 +173,7 @@ export namespace BreakpointActivity {
 
 
 interface AwaiterData {
-	readonly promise: Promise<BreakpointActivity>;
+	readonly promise: Promise<BreakpointElement>;
 	readonly resolve: () => void;
 	readonly reject: (reason: Error) => void;
 	readonly cancellationTokenReleasers: Array<() => void>;

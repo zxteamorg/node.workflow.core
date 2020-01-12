@@ -7,7 +7,7 @@ import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 
 @Activity.Id("d2360cf2-d55f-4198-ba84-a8af34c9888f")
 export class SequenceActivity extends NativeActivity {
-	public constructor(...children: ReadonlyArray<Activity>) { super({}, ...children); }
+	public constructor(...children: ReadonlyArray<Activity>) { super(...children); }
 
 	protected async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		const { variables } = ctx;
