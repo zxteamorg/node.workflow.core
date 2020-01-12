@@ -7,7 +7,7 @@ import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 import { Activity, BreakpointActivity, NativeActivity } from "../activities";
 import { BusinessActivity } from "../activities/BusinessActivity";
 
-export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
+export class WorkflowVirtualMachine1Impl implements WorkflowVirtualMachine {
 	private readonly _runtimeSymbols: Map<symbol, any>;
 	private readonly _callstack: Array<StackFrame>;
 	private _terminated: boolean;

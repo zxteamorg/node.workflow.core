@@ -89,7 +89,7 @@ export class BreakpointActivity extends NativeActivity {
 					ctx.stackPop();
 				} else {
 					// push child
-					ctx.stackPush(cancellationToken, this.children[0]);
+					await ctx.stackPush(cancellationToken, this.children[0]);
 					runtimeSymbols.set(this._breakpointChildSymbol, null); // value does not matter
 				}
 			}

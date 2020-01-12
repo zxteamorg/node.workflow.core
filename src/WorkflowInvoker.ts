@@ -6,18 +6,18 @@ import { Activity } from "./activities/Activity";
 import { BreakpointElement } from "./elements/BreakpointElement";
 
 import { WorkflowVirtualMachine } from "./WorkflowVirtualMachine";
-import { WorkflowVirtualMachineImpl } from "./internal/WorkflowVirtualMachineImpl";
+import { WorkflowVirtualMachine1Impl } from "./internal/WorkflowVirtualMachine1Impl";
 
 export class WorkflowInvoker {
 	private readonly _wvm: WorkflowVirtualMachine;
 
-	public static async run(cancellationToken: CancellationToken, workflowId: string, activity: Activity): Promise<void> {
-		const instance = new WorkflowInvoker(workflowId, activity);
+	public static async run(cancellationToken: CancellationToken, activity: Activity): Promise<void> {
+		const instance = new WorkflowInvoker(activity);
 		return instance.invoke(cancellationToken);
 	}
 
-	public constructor(workflowId: string, activity: Activity) {
-		this._wvm = new WorkflowVirtualMachineImpl(workflowId, activity);
+	public constructor(activity: Activity) {
+		this._wvm = new WorkflowVirtualMachine1Impl(activity);
 	}
 
 	public get currentExecutionContext(): WorkflowVirtualMachine.ExecutionContext {

@@ -37,11 +37,6 @@ export interface WorkflowVirtualMachine {
 	readonly variables: WorkflowVirtualMachine.Variables;
 
 	/**
-	 * Gets ID of executing workflow
-	 */
-	readonly workflowId: string;
-
-	/**
 	 * Get map of the breakpoints of the executed workflow
 	 */
 	readonly breakpoints: ReadonlyMap<BreakpointActivity["name"], BreakpointActivity>;
@@ -70,7 +65,7 @@ export namespace WorkflowVirtualMachine {
 	}
 
 	export interface ExecutionContext {
-		readonly workflowId: string;
+		//readonly workflowId: string;
 		readonly currentActivityCallCount: number;
 		readonly stack: ReadonlyArray<Activity>;
 		readonly variables: WorkflowVirtualMachine.Variables;

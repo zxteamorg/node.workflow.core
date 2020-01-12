@@ -187,7 +187,7 @@ async function main(): Promise<void> {
 
 	// const workflow = new ConsoleLogActivity({ text: "one" });
 
-	workflowInvoker = new WorkflowInvoker("example", workflow);
+	workflowInvoker = new WorkflowInvoker(workflow);
 
 	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "SETUP_BREAKPOINT").then(() => {
 		const variables = workflowInvoker.currentExecutionContext.variables;
