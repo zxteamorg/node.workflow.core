@@ -21,7 +21,7 @@ export class ContextActivity extends NativeActivity {
 				const value = context[key];
 				ctx.variables.define(key, value, WorkflowVirtualMachine.Scope.INHERIT);
 			}
-			await ctx.stackPush(cancellationToken, this.children[0]);
+			await ctx.stackPush(0);
 		} else {
 			ctx.stackPop(); // remove itself
 		}

@@ -12,6 +12,7 @@
 		"strict": true,
 		"strictNullChecks": true,
 		"strictPropertyInitialization": true,
-		"strictFunctionTypes": true
+		"strictFunctionTypes": true,
+		"sourceMap": true
 	}
 }
