@@ -25,8 +25,7 @@ export class SequenceActivity extends NativeActivity {
 		}
 
 		if (childIndex < this.children.length) {
-			const nextChild: Activity = this.children[childIndex];
-			await ctx.stackPush(cancellationToken, nextChild);
+			await ctx.stackPush(childIndex);
 			variables.set(indexVarName, childIndex + 1);
 		} else {
 			ctx.stackPop(); // remove itself
