@@ -33,7 +33,7 @@ export class LoopActivity extends NativeActivity {
 		if (variables.getBoolean(oid)) {
 			ctx.stackPop(); // remove itself
 		} else {
-			await ctx.stackPush(cancellationToken, this.children[0]);
+			await ctx.stackPush(0);
 		}
 	}
 }
