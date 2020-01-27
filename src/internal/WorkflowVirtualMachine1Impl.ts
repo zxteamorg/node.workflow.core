@@ -165,7 +165,12 @@ export class WorkflowVirtualMachine1Impl implements WorkflowVirtualMachine {
 		return oidParts.join(".");
 	}
 
-	public async stackPush(cancellationToken: CancellationToken, activity: Activity): Promise<void> {
+	public async stackPush(index: number): Promise<void> {
+
+		const frame: StackFrame | undefined = this._callstack[this._callstack.length - 1];
+		const parent = frame.activity as NativeActivity;
+		const activity = parent.children[index];
+
 		const registers: Map<string, any> = new Map();
 		this._callstack.push({ activity, variables: registers, callCouner: 0 });
 	}
@@ -190,23 +195,35 @@ export class WorkflowVirtualMachine1Impl implements WorkflowVirtualMachine {
 				return true; // Workflow is finished
 			}
 
-
 			const frame: StackFrame | undefined = this._callstack[this._callstack.length - 1];
 			if (frame !== undefined) {
 				const { activity } = frame;
 				++frame.callCouner;
-				if (activity instanceof BusinessActivity) {
+				if (activity instanceof BreakpointActivity) {
+
+					//TODO: Redesign
+					if (this._paused) {
+						if (activity.isResumeAllowed(this)) {
+							this._paused = false;
+						} else {
+							//Should we call resolveAwaiters here again?
+							return true;
+						}
+					}
+
 					await activity.execute(cancellationToken, this);
-					this.stackPop(); // BusinessActivity does not know anything of the stack
-				} else if (activity instanceof BreakpointActivity) {
-					this._paused = true;
-					await activity.execute(cancellationToken, this);
-					const isResumeAllowed = activity.isResumeAllowed(this);
-					if (isResumeAllowed === true) {
+
+					if (activity.isResumeAllowed(this)) {
 						this._paused = false;
 					} else {
+						this._paused = true;
+						activity.resolveAwaiters(this);
 						return true; // Workflow is idle (due paused)
 					}
+
+				} else if (activity instanceof BusinessActivity) {
+					await activity.execute(cancellationToken, this);
+					this.stackPop(); // BusinessActivity does not know anything of the stack
 				} else if (activity instanceof NativeActivity) {
 					await activity.execute(cancellationToken, this);
 				} else {
@@ -225,6 +242,10 @@ export class WorkflowVirtualMachine1Impl implements WorkflowVirtualMachine {
 			return this._callstack[this._callstack.length - 1];
 		}
 		throw new InvalidOperationError("Wrong operation at current state. Did you start WVM?");
+	}
+
+	public preserve(): WorkflowVirtualMachine.WorkflowVirtualMachineState {
+		throw new InvalidOperationError("Not supported");
 	}
 }
 

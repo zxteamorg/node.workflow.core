@@ -48,18 +48,16 @@ export class IfActivity extends NativeActivity {
 
 		if (!variables.has(oid)) {
 			variables.define(oid, null, WorkflowVirtualMachine.Scope.INHERIT);
-			await ctx.stackPush(cancellationToken, this.children[0]);
+			await ctx.stackPush(0);
 		} else if (!variables.has(`${oid}#`)) {
 			const conditionResult = variables.getBoolean(oid);
 
 			variables.define(`${oid}#`, null, WorkflowVirtualMachine.Scope.LOCAL);
 
 			if (conditionResult === true) {
-				const trueActivity: Activity = this.children[1];
-				await ctx.stackPush(cancellationToken, trueActivity);
+				await ctx.stackPush(1);
 			} else if (this.children.length > 2) {
-				const falseActivity: Activity = this.children[2];
-				await ctx.stackPush(cancellationToken, falseActivity); // run falseActi
+				await ctx.stackPush(2);
 			}
 		} else {
 			ctx.stackPop(); // remove itself

@@ -3,11 +3,12 @@ import { CancellationToken } from "@zxteam/contract";
 import {
 	Activity, BreakpointActivity, BusinessActivity, ContextActivity,
 	ConsoleLogActivity, DelayActivity, LoopActivity, NativeActivity, RandomIntActivity,
-	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity, IfElement
+	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity, IfElement, WorkflowApplication
 } from "../src";
 import { WorkflowInvoker } from "../src";
 
 import { createInterface } from "readline";
+import { InvalidOperationError } from "@zxteam/errors";
 
 // let testStartBreakpoint: BreakpointActivity<any>;
 // let testFinishBreakpoint: BreakpointActivity<any>;
@@ -187,13 +188,15 @@ async function main(): Promise<void> {
 
 	// const workflow = new ConsoleLogActivity({ text: "one" });
 
-	workflowInvoker = new WorkflowInvoker(workflow);
+	workflowInvoker = WorkflowInvoker.create("example1", workflow);
 
 	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "SETUP_BREAKPOINT").then(() => {
-		const variables = workflowInvoker.currentExecutionContext.variables;
-		variables.define("name", "Maks", WorkflowVirtualMachine.Scope.INHERIT);
-		variables.define("age", 40, WorkflowVirtualMachine.Scope.INHERIT);
-		workflowInvoker.resumeBreakpoint("SETUP_BREAKPOINT");
+
+			throw new InvalidOperationError("Fuck");
+			const variables = workflowInvoker.currentExecutionContext.variables;
+			variables.define("name", "Maks", WorkflowVirtualMachine.Scope.INHERIT);
+			variables.define("age", 40, WorkflowVirtualMachine.Scope.INHERIT);
+			workflowInvoker.resumeBreakpoint("SETUP_BREAKPOINT");
 	});
 
 
