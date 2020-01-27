@@ -6,6 +6,7 @@ import {
 	RandomUintActivity, SequenceActivity, WorkflowVirtualMachine, IfActivity, IfElement
 } from "../src";
 import { WorkflowInvoker } from "../src";
+import { sleep } from "@zxteam/cancellation";
 
 let invoker0: WorkflowInvoker;
 
@@ -121,7 +122,14 @@ async function main(): Promise<void> {
 	const invoker2 = reload(2, invoker1);
 	invoker2.resumeBreakpoint("SECOND_STOP");
 	await invoker2.step(dummyCancellationToken);
+
+	await sleep(dummyCancellationToken, 1000);
+
+	const fs = invoker2.preserve();
+	console.log("===== FS =========================");
+	console.log(JSON.stringify(fs, null, 2));
 }
+
 
 main()
 	.then(() => { process.exit(0); })
