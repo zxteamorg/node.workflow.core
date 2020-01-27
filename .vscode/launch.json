@@ -1,6 +1,7 @@
 {
 	"version": "0.2.0",
 	"configurations": [
+
 		{
 			"name": "Example 1",
 			"type": "node",
@@ -15,6 +16,21 @@
 				"NODE_ENV": "development"
 			},
 			"program": "${workspaceRoot}/test/example1.js"
+		},
+		{
+			"name": "Example 2",
+			"type": "node",
+			"runtimeArgs": [
+				"--require",
+				"source-map-support/register",
+			],
+			"request": "launch",
+			"preLaunchTask": "compile:src:ts",
+			"cwd": "${workspaceRoot}",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"program": "${workspaceRoot}/test/example2.js"
 		},
 		{
 			"name": "Test",

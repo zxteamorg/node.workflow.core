@@ -43,7 +43,7 @@ export interface WorkflowVirtualMachine {
 
 	getActivityOid(activity: Activity): string;
 
-	stackPush(cancellationToken: CancellationToken, activity: Activity): Promise<void>;
+	stackPush(index: number): Promise<void>;
 	stackPop(): void;
 
 	/**
@@ -51,6 +51,8 @@ export interface WorkflowVirtualMachine {
 	 * @returns Idle status. `true` is nothing to do (check isPaused/isTerminated flags)
 	 */
 	tick(cancellationToken: CancellationToken): Promise<boolean>;
+
+	preserve(): WorkflowVirtualMachine.WorkflowVirtualMachineState;
 }
 export namespace WorkflowVirtualMachine {
 	export const enum Scope {
@@ -65,7 +67,6 @@ export namespace WorkflowVirtualMachine {
 	}
 
 	export interface ExecutionContext {
-		//readonly workflowId: string;
 		readonly currentActivityCallCount: number;
 		readonly stack: ReadonlyArray<Activity>;
 		readonly variables: WorkflowVirtualMachine.Variables;
@@ -76,7 +77,7 @@ export namespace WorkflowVirtualMachine {
 	}
 	export interface NativeExecutionContext extends ExecutionContext {
 		readonly runtimeSymbols: WorkflowVirtualMachine.RuntimeSymbols;
-		stackPush(cancellationToken: CancellationToken, activity: Activity): Promise<void>;
+		stackPush(child: number): Promise<void>;
 		stackPop(): void;
 	}
 
@@ -95,5 +96,27 @@ export namespace WorkflowVirtualMachine {
 		getString(name: string): string;
 		has(name: string): boolean;
 		set(name: string, value: boolean | number | object | string): void;
+	}
+
+	export interface WorkflowVirtualMachineState {
+		activity: string;
+		stack: WorkflowVirtualMachine.Stack.StackState;
+	}
+
+	export namespace Stack {
+
+		export type StackState = FrameData[];
+
+		export interface VariableData {
+			name: string;
+			scope: WorkflowVirtualMachine.Scope;
+			value: any;
+		}
+
+		export interface FrameData  {
+			idx: number;
+			calls: number;
+			variables: VariableData[];
+		}
 	}
 }

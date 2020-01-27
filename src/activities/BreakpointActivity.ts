@@ -77,7 +77,9 @@ export class BreakpointActivity extends NativeActivity {
 	public async onExecute(cancellationToken: CancellationToken, ctx: WorkflowVirtualMachine.NativeExecutionContext): Promise<void> {
 		const { runtimeSymbols } = ctx;
 
-		this.resolveAwaiters(runtimeSymbols);
+		//Should not be executed while execution of activity,
+		//instead VM should deside when resolve should be triggered
+		//this.resolveAwaiters(runtimeSymbols);
 
 		if (this.isResumeAllowed(ctx)) {
 			if (this.children.length === 0) {
@@ -89,7 +91,7 @@ export class BreakpointActivity extends NativeActivity {
 					ctx.stackPop();
 				} else {
 					// push child
-					await ctx.stackPush(cancellationToken, this.children[0]);
+					await ctx.stackPush(0);
 					runtimeSymbols.set(this._breakpointChildSymbol, null); // value does not matter
 				}
 			}
@@ -118,10 +120,12 @@ export class BreakpointActivity extends NativeActivity {
 			(awaiter as any).promise = new Promise<BreakpointElement>((resolve, reject) => {
 				const awaiterResolve = () => {
 					for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
+					// TODO: Potential unhandled promise rejection. Find way to log an error here.
 					resolve(new BreakpointElement(ctx, this.name, this.description, this._breakpointResumeSymbol));
 				};
 				const awaiterReject = (reason: any) => {
 					for (const releaser of awaiter.cancellationTokenReleasers) { releaser(); }
+					// TODO: Potential unhandled promise rejection. Find way to log an error here.
 					reject(reason);
 				};
 				(awaiter as any).resolve = awaiterResolve;
@@ -154,7 +158,9 @@ export class BreakpointActivity extends NativeActivity {
 		runtimeSymbols.set(this._breakpointResumeSymbol, true);
 	}
 
-	protected resolveAwaiters(runtimeSymbols: WorkflowVirtualMachine.RuntimeSymbols): void {
+	public resolveAwaiters(ctx: WorkflowVirtualMachine.NativeExecutionContext): void {
+		const { runtimeSymbols } = ctx;
+
 		if (runtimeSymbols.has(this._breakpointAwaiterSymbol)) {
 			// Notify awaiters
 			const awaiter: AwaiterData = runtimeSymbols.get(this._breakpointAwaiterSymbol);
