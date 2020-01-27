@@ -122,11 +122,11 @@ export class WorkflowInvoker {
 
 export namespace WorkflowInvoker {
 	export const enum State {
-		NEW = "NEW",
-		WORKING = "WORKING",
-		SLEEPING = "SLEEPING",
-		CRASHED = "CRASHED",
-		COMPLETED = "COMPLETED"
+		NEW = "New",
+		WORKING = "Working",
+		SLEEPING = "Sleeping",
+		CRASHED = "Crashed",
+		COMPLETED = "Completed"
 	}
 
 	export interface WorkflowInvokerState {

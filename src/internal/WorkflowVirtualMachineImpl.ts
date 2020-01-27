@@ -15,6 +15,13 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 	private readonly _variables: WorkflowVirtualMachineStack.VariablesAccessor;
 	private readonly _runtimeSymbols: Map<symbol, any>;
 
+	// External components expect to have an ability to preserve
+	// finished machine. But, finished machine have zero frames on stack,
+	// as result, root activity can't be resolved. So, necessary to preserve
+	// ref to root activity for future use as soon as it will be pushed to
+	// stack.
+	private _root?: Activity;
+
 	private _terminated: boolean;
 	private _paused: boolean;
 
@@ -30,7 +37,7 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 
 	public get rootActivity(): Activity {
 
-		return this._stack.root.activity;
+		return this._root!;
 	}
 
 	public get stack(): ReadonlyArray<Activity> {
@@ -147,6 +154,7 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 	public static create(root: NativeActivity) {
 		const result = new WorkflowVirtualMachineImpl();
 		result._stack.pushRoot(root);
+		result._root = result._stack.root.activity;
 		return result;
 	}
 
@@ -156,6 +164,7 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 		const root = new constructor({});
 		const result = new WorkflowVirtualMachineImpl();
 		result._stack.reconstruct(root, state.stack);
+		result._root = result._stack.root.activity;
 		return result;
 	}
 
