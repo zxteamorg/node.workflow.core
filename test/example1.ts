@@ -192,7 +192,6 @@ async function main(): Promise<void> {
 
 	workflowInvoker.waitForBreakpoint(dummyCancellationToken, "SETUP_BREAKPOINT").then(() => {
 
-			throw new InvalidOperationError("Fuck");
 			const variables = workflowInvoker.currentExecutionContext.variables;
 			variables.define("name", "Maks", WorkflowVirtualMachine.Scope.INHERIT);
 			variables.define("age", 40, WorkflowVirtualMachine.Scope.INHERIT);
