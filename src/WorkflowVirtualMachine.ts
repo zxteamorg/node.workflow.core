@@ -28,16 +28,19 @@ export interface WorkflowVirtualMachine {
 	/**
 	 * Get runtime symbols storage.
 	 * THIS IS NOT PERSISTABLE
+	 * TODO: Deprecated
 	 */
 	readonly runtimeSymbols: WorkflowVirtualMachine.RuntimeSymbols;
 
 	/**
 	 * Get persistable variables storage.
+	 * TODO: Deprecated
 	 */
 	readonly variables: WorkflowVirtualMachine.Variables;
 
 	/**
 	 * Get map of the breakpoints of the executed workflow
+	 * TODO: Deprecated
 	 */
 	readonly breakpoints: ReadonlyMap<BreakpointActivity["name"], BreakpointActivity>;
 
@@ -45,6 +48,27 @@ export interface WorkflowVirtualMachine {
 
 	stackPush(index: number): Promise<void>;
 	stackPop(): void;
+
+	/**
+	 * Returns named activity by name
+	 * @param name Activity name
+	 */
+	//getByName(name: string): Activity;
+
+	/**
+	 * Delays execution of machie on @period function, guarantees that
+	 * next tick will at least after @period. If -1 passed (default) machine
+	 * will be delayed on default period, which can be automatically increased
+	 * with next delays.
+	 * @param period Delay period in seconds, can be with 3 decimal digits for ms.
+	 */
+	delay(period: number): void;
+
+	/**
+	 * Countdown to execution of next tick of workflow virtual machine
+	 * @returns Time in milliseconds to execution of next tick. 0 - ready for execution.
+	 */
+	tickCountdown(): number;
 
 	/**
 	 * Execute next workflow item
@@ -74,9 +98,17 @@ export namespace WorkflowVirtualMachine {
 		 * Gets activity OID (finding in stack)
 		 */
 		getActivityOid(activity: Activity): string;
+		// /**
+		//  * Get named activity by name
+		//  * @param name
+		//  */
+		// getByName(name: string): Activity;
 	}
 	export interface NativeExecutionContext extends ExecutionContext {
+		//TODO: Deprecate
 		readonly runtimeSymbols: WorkflowVirtualMachine.RuntimeSymbols;
+
+		delay(period?: number): void;
 		stackPush(child: number): Promise<void>;
 		stackPop(): void;
 	}
@@ -100,6 +132,7 @@ export namespace WorkflowVirtualMachine {
 
 	export interface WorkflowVirtualMachineState {
 		activity: string;
+		nextTick: string | undefined;
 		stack: WorkflowVirtualMachine.Stack.StackState;
 	}
 

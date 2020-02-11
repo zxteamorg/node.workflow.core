@@ -33,6 +33,21 @@
 			"program": "${workspaceRoot}/test/example2.js"
 		},
 		{
+			"name": "Example 3",
+			"type": "node",
+			"runtimeArgs": [
+				"--require",
+				"source-map-support/register",
+			],
+			"request": "launch",
+			"preLaunchTask": "compile:src:ts",
+			"cwd": "${workspaceRoot}",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"program": "${workspaceRoot}/test/example3.js"
+		},
+		{
 			"name": "Test",
 			"type": "node",
 			"request": "launch",
