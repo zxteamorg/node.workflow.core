@@ -5,7 +5,7 @@ import * as _ from "lodash";
 
 import { WorkflowVirtualMachine } from "../WorkflowVirtualMachine";
 import { Activity, BreakpointActivity, NativeActivity, ConsoleLogActivity, ContextActivity } from "../activities";
-import * as meta from "../internal/meta";
+import * as meta from "./meta";
 import { BusinessActivity } from "../activities/BusinessActivity";
 import { WorkflowVirtualMachineStack } from "./WorkflowVirtualMachineStack";
 
@@ -93,6 +93,18 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 		this._stack.pop();
 	}
 
+	public delay() {
+		throw new Error("Not implemented.");
+	}
+
+	public tickCountdown(): number {
+		throw new Error("Not implemented.");
+	}
+
+	// public getByName(name: string): Activity {
+	// 	throw new Error("Not implemented");
+	// }
+
 	public async tick(cancellationToken: CancellationToken): Promise<boolean> {
 
 		if (this._stack.size === 0) {
@@ -147,6 +159,7 @@ export class WorkflowVirtualMachineImpl implements WorkflowVirtualMachine {
 		let aid = meta.getActivityUUID(this.rootActivity.constructor);
 		return {
 			activity: aid,
+			nextTick: undefined,
 			stack: this._stack.preserve()
 		};
 	}

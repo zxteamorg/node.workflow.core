@@ -127,6 +127,7 @@ export class WorkflowVirtualMachine1Impl implements WorkflowVirtualMachine {
 	public get isPaused(): boolean { return this._paused; }
 	public get isTerminated(): boolean { return this._terminated; }
 
+
 	public getActivityOid(activity: Activity): string {
 		const stackCopy = this.stack.slice();
 		let oidParts: Array<number> = [];
@@ -181,6 +182,18 @@ export class WorkflowVirtualMachine1Impl implements WorkflowVirtualMachine {
 			throw new InvalidOperationError("Stack underflow");
 		}
 	}
+
+	public delay() {
+		throw new Error("Not implemented.");
+	}
+
+	public tickCountdown(): number {
+		throw new Error("Not implemented");
+	}
+
+	// public getByName(name: string): Activity {
+	// 	throw new Error("Not implemented");
+	// }
 
 	public async tick(cancellationToken: CancellationToken): Promise<boolean> {
 		if (this._tickGuard === true) {
