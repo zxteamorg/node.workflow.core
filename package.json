@@ -28,7 +28,7 @@
 		"@zxteam/cancellation": "^6.0.25",
 		"@zxteam/contract": "^6.0.40",
 		"@zxteam/errors": "^6.0.33",
-		"lodash": "^4.17.15",
+		"lodash": "^4.17.19",
 		"reflect-metadata": "^0.1.13"
 	},
 	"engines": {
